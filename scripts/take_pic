@@ -1,0 +1,11 @@
+#!/usr/bin/python3
+import YanAPI
+import sys
+
+def main(name):
+  YanAPI.yan_api_init(YanAPI.ip)
+  response=YanAPI.get_vision_photo(name,"/home/pi/yanapi_ws/photos/")
+  print(response)
+
+if __name__=="__main__":
+  main(sys.argv[1])
