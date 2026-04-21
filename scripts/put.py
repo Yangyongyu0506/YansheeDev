@@ -22,7 +22,7 @@ B = 3
 # 各颜色对应的步数参数
 STEPS = {
     "yellow": {"forward1": 3, "forward2": 3},   # h1, h2
-    "green":  {"forward1": 5, "forward2": 3},   # g1, g2
+    "green":  {"forward1": 15, "forward2": 3},   # g1, g2
     "red":    {"forward1": 7, "forward2": 3},   # r1, r2
 }
 
@@ -80,7 +80,7 @@ def main():
 
     # ---------- 步骤6: 放置方块 ----------
     print("[INFO] 执行 place 放置方块...")
-    YanAPI.sync_play_motion(name="place")
+    YanAPI.sync_play_motion(name="place2")
     print("[INFO] 放置完成！")
 
 
