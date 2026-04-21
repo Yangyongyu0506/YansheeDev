@@ -205,3 +205,12 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# 忽略 VS Code 自动生成的数据库文件
+.vscode/*.vc.db
+.vscode/*.vc.db-shm
+.vscode/*.vc.db-wal
+
+# 或者更彻底一点，忽略整个 .vscode 文件夹（推荐）
+# 因为这些是你的个人环境配置，别人下载代码后通常不需要你的配置
+.vscode/
