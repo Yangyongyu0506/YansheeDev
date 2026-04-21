@@ -44,7 +44,6 @@ CENTER_X = IMAGE_WIDTH // 2
 CENTER_TOLERANCE = 40
 MAX_ITERATIONS = 40
 SEARCH_WALK_REPEAT = 2
-SEARCH_FORWARD_REPEAT = 1
 
 # 目标面积（像素面积）和可接受容差
 # 该值用于估计抓取距离，建议在实机上按场地和相机高度微调。
@@ -146,7 +145,6 @@ def main():
 
     print("[INFO] 复位姿态...")
     YanAPI.sync_play_motion("reset")
-    time.sleep(0.5)
 
     ever_found = False
 
@@ -156,7 +154,6 @@ def main():
         photo_path = do_take_photo()
         if photo_path is None:
             print("[WARN] 拍照失败，1 秒后重试...")
-            time.sleep(1.0)
             continue
 
         result = detect_color_blocks(photo_path, target_color)
@@ -165,22 +162,13 @@ def main():
         )
 
         if not result["found"]:
-            print("[INFO] 未检测到 {} 色方块，先向左尝试搜索...".format(target_color))
+            print("[INFO] 未检测到 {} 色方块，继续向左搜索...".format(target_color))
             YanAPI.sync_play_motion(
                 name="walk",
                 direction="left",
-                speed="slow",
+                speed="fast",
                 repeat=SEARCH_WALK_REPEAT,
             )
-            time.sleep(0.3)
-            print("[INFO] 左移后仍未锁定目标，向前靠近继续搜索...")
-            YanAPI.sync_play_motion(
-                name="walk",
-                direction="forward",
-                speed="slow",
-                repeat=SEARCH_FORWARD_REPEAT,
-            )
-            time.sleep(0.3)
             continue
 
         ever_found = True
@@ -198,46 +186,32 @@ def main():
 
         if abs(offset) > CENTER_TOLERANCE:
             if offset < 0:
-                print("[INFO] 目标偏左，向左调整 1 步...")
+                print("[INFO] 已发现目标但偏左，向左移动 1 步对准...")
                 YanAPI.sync_play_motion(
-                    name="walk", direction="left", speed="slow", repeat=1
+                    name="walk", direction="left", speed="fast", repeat=1
                 )
             else:
-                print("[INFO] 目标偏右，向右调整 1 步...")
+                print("[INFO] 已发现目标但偏右，向右移动 1 步对准...")
                 YanAPI.sync_play_motion(
                     name="walk", direction="right", speed="slow", repeat=1
                 )
-            time.sleep(0.3)
             continue
 
-        if area < lower_bound:
-            print(
-                "[INFO] 当前面积 {} 小于下界 {}，向前靠近 1 步...".format(
-                    area, lower_bound
-                )
-            )
-            YanAPI.sync_play_motion(
-                name="walk", direction="forward", speed="slow", repeat=1
-            )
-            time.sleep(0.3)
-            continue
+        if lower_bound <= area <= upper_bound:
+            print("[INFO] 面积已进入目标容差，执行 grab2...")
+            YanAPI.sync_play_motion(name="grab2")
+            print("[INFO] 抓取完成。")
+            return
 
-        if area > upper_bound:
-            print(
-                "[INFO] 当前面积 {} 大于上界 {}，向后调整 1 步...".format(
-                    area, upper_bound
-                )
+        print(
+            "[INFO] 目标已对准但面积 {} 未进入 [{} , {}]，向前靠近 1 步...".format(
+                area, lower_bound, upper_bound
             )
-            YanAPI.sync_play_motion(
-                name="walk", direction="backward", speed="slow", repeat=1
-            )
-            time.sleep(0.3)
-            continue
-
-        print("[INFO] 面积已进入目标容差，执行 grab2...")
-        YanAPI.sync_play_motion(name="grab2")
-        print("[INFO] 抓取完成。")
-        return
+        )
+        YanAPI.sync_play_motion(
+            name="walk", direction="forward", speed="slow", repeat=1
+        )
+        continue
 
     print("\n" + "=" * 60)
     if not ever_found:

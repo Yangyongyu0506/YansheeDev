@@ -39,11 +39,11 @@ SEARCH_WALK_REPEAT = 2
 MAX_ITERATIONS = 40
 
 # 放置公式: walk_left_steps = BASE[color] + (4 - block_index) * 3
-PUT_STEP_MULTIPLIER = 4
+PUT_STEP_MULTIPLIER = 7
 PUT_BASE_STEPS = {
-    "green":  12,
-    "yellow": 18,
-    "red":    23,
+    "green":  16,
+    "yellow": 26,
+    "red":    38,
 }
 
 
@@ -188,8 +188,9 @@ def do_fetch(target_color):
 # ======================== Phase 2: Put ========================
 def do_put(block_index, target_color):
     """根据颜色和物块编号计算步数，向左走并放置方块。"""
+    YanAPI.sync_play_motion(name="walk", direction="backward", speed="slow", repeat=3)
     base = PUT_BASE_STEPS[target_color]
-    steps = base + (4 - block_index) * PUT_STEP_MULTIPLIER
+    steps = base + (3 - block_index) * PUT_STEP_MULTIPLIER
 
     print("\n" + "=" * 55)
     print("  [Phase 2] Put — 颜色: {} 物块编号: {}".format(target_color, block_index))
@@ -205,8 +206,7 @@ def do_put(block_index, target_color):
 
     if target_color == "red":
         print("[INFO] 红色方块，转180度...")
-        YanAPI.sync_play_motion(name="turn around", direction="left", repeat=1)
-        YanAPI.sync_play_motion(name="turn around", direction="left", repeat=1)
+        YanAPI.sync_play_motion(name="turn around", direction="left", repeat=5)
         print("[INFO] 转180度完成")
 
     print("[INFO] 执行 place 放置方块...")
