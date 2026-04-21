@@ -44,13 +44,14 @@ CENTER_X = IMAGE_WIDTH // 2
 CENTER_TOLERANCE = 40
 MAX_ITERATIONS = 40
 SEARCH_WALK_REPEAT = 2
+SEARCH_FORWARD_REPEAT = 1
 
 # 目标面积（像素面积）和可接受容差
 # 该值用于估计抓取距离，建议在实机上按场地和相机高度微调。
 TARGET_AREA_BY_COLOR = {
     "red": 9000,
     "yellow": 9000,
-    "green": 9000,
+    "green": 70000,
 }
 AREA_TOLERANCE_RATIO = 0.15  # ±15%
 AREA_TOLERANCE_MIN = 1200
@@ -164,12 +165,20 @@ def main():
         )
 
         if not result["found"]:
-            print("[INFO] 未检测到 {} 色方块，继续向左搜索...".format(target_color))
+            print("[INFO] 未检测到 {} 色方块，先向左尝试搜索...".format(target_color))
             YanAPI.sync_play_motion(
                 name="walk",
                 direction="left",
                 speed="slow",
                 repeat=SEARCH_WALK_REPEAT,
+            )
+            time.sleep(0.3)
+            print("[INFO] 左移后仍未锁定目标，向前靠近继续搜索...")
+            YanAPI.sync_play_motion(
+                name="walk",
+                direction="forward",
+                speed="slow",
+                repeat=SEARCH_FORWARD_REPEAT,
             )
             time.sleep(0.3)
             continue
