@@ -214,4 +214,6 @@ __marimo__/
 # 或者更彻底一点，忽略整个 .vscode 文件夹（推荐）
 # 因为这些是你的个人环境配置，别人下载代码后通常不需要你的配置
 .vscode/
-photos/
+# Ignore photos
+**/photos/
+**/test_photos/
