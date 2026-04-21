@@ -203,6 +203,12 @@ def do_put(block_index, target_color):
         print("[INFO] 向左第 {}/{} 步完成".format(i + 1, steps))
     print("[INFO] 向左走完成")
 
+    if target_color == "red":
+        print("[INFO] 红色方块，转180度...")
+        YanAPI.sync_play_motion(name="turn around", direction="left", repeat=1)
+        YanAPI.sync_play_motion(name="turn around", direction="left", repeat=1)
+        print("[INFO] 转180度完成")
+
     print("[INFO] 执行 place 放置方块...")
     YanAPI.sync_play_motion(name="place2")
     print("[INFO] 放置完成！")
