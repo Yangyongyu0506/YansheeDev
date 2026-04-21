@@ -15,9 +15,9 @@ import YanAPI
 # ======================== 参数配置（按硬件实际调整）========================
 # 各颜色对应的向左步数
 WALK_LEFT_STEPS = {
-    "green":  7,
-    "yellow": 12,
-    "red":    15,
+    "green":  19,
+    "yellow": 20,
+    "red":    25,
 }
 
 SUPPORTED_COLORS = ["red", "yellow", "green"]

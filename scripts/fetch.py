@@ -34,10 +34,10 @@ TEST_PHOTOS_DIR = os.path.join(PROJECT_DIR, "test_photos")
 # ======================== 参数配置 ========================
 IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
-CENTER_X = IMAGE_WIDTH // 2          # 320
-CENTER_TOLERANCE = 40                 # 像素，距离中心多少算对准
-SEARCH_WALK_REPEAT = 2                # 搜索阶段每轮向左走的步数
-MAX_ITERATIONS = 40                   # 最大循环次数，防止死循环
+CENTER_X = IMAGE_WIDTH // 2  # 320
+CENTER_TOLERANCE = 40  # 像素，距离中心多少算对准
+SEARCH_WALK_REPEAT = 2  # 搜索阶段每轮向左走的步数
+MAX_ITERATIONS = 40  # 最大循环次数，防止死循环
 
 
 # ======================== 拍照 ========================
@@ -64,8 +64,15 @@ def save_debug_image(image_path, result, target_color):
         cv2.circle(img, (cx, cy), DOT_RADIUS + 2, (255, 255, 255), 2)
         cv2.circle(img, (cx, cy), DOT_RADIUS, bgr, -1)
         label = "{} ({},{})".format(target_color, cx, cy)
-        cv2.putText(img, label, (cx + DOT_RADIUS + 5, cy + 4),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+        cv2.putText(
+            img,
+            label,
+            (cx + DOT_RADIUS + 5, cy + 4),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.4,
+            (255, 255, 255),
+            1,
+        )
 
     # 画中心参考线
     cv2.line(img, (CENTER_X, 0), (CENTER_X, IMAGE_HEIGHT), (255, 255, 255), 1)
@@ -86,8 +93,11 @@ def main():
 
     target_color = sys.argv[1].strip().lower()
     if target_color not in SUPPORTED_COLORS:
-        print("[ERROR] 不支持的颜色 '{}', 支持: {}".format(
-            target_color, ", ".join(SUPPORTED_COLORS)))
+        print(
+            "[ERROR] 不支持的颜色 '{}', 支持: {}".format(
+                target_color, ", ".join(SUPPORTED_COLORS)
+            )
+        )
         sys.exit(1)
 
     print("=" * 55)
@@ -126,7 +136,9 @@ def main():
         if not result["found"]:
             print("[INFO] 未检测到 {} 色方块，继续向左搜索...".format(target_color))
             YanAPI.sync_play_motion(
-                name="walk", direction="left", speed="slow",
+                name="walk",
+                direction="left",
+                speed="slow",
                 repeat=SEARCH_WALK_REPEAT,
             )
             time.sleep(0.3)
@@ -134,14 +146,19 @@ def main():
 
         # 4) 找到目标，取面积最大的块
         ever_found = True
+        areas = [int(b["area"]) for b in result["blocks"]]
+        print("[INFO] {} 色方块面积列表: {}".format(target_color, areas))
         block = max(result["blocks"], key=lambda b: b["area"])
         cx = block["center_x"]
         cy = block["center_y"]
         area = block["area"]
         offset = cx - CENTER_X
 
-        print("[INFO] 检测到 {} 色方块 中心=({}, {}) 面积={:.0f} 偏移={:+d}px".format(
-            target_color, cx, cy, area, offset))
+        print(
+            "[INFO] 检测到 {} 色方块 中心=({}, {}) 面积={:.0f} 偏移={:+d}px".format(
+                target_color, cx, cy, area, offset
+            )
+        )
 
         # 5) 判断是否已对准中心
         if abs(offset) <= CENTER_TOLERANCE:
@@ -155,13 +172,19 @@ def main():
             # 方块在画面左侧 → 机器人向左走，让方块向画面中心靠拢
             print("[INFO] 方块偏左，向左调整 1 步...")
             YanAPI.sync_play_motion(
-                name="walk", direction="left", speed="slow", repeat=1,
+                name="walk",
+                direction="left",
+                speed="slow",
+                repeat=1,
             )
         else:
             # 方块在画面右侧 → 机器人向右走
             print("[INFO] 方块偏右，向右调整 1 步...")
             YanAPI.sync_play_motion(
-                name="walk", direction="right", speed="slow", repeat=1,
+                name="walk",
+                direction="right",
+                speed="slow",
+                repeat=1,
             )
 
         time.sleep(0.3)
@@ -169,11 +192,15 @@ def main():
     # ---------- 超时退出 ----------
     print("\n" + "=" * 55)
     if not ever_found:
-        print("[ERROR] 已达最大迭代次数 ({})，始终未找到 {} 色方块。".format(
-            MAX_ITERATIONS, target_color))
+        print(
+            "[ERROR] 已达最大迭代次数 ({})，始终未找到 {} 色方块。".format(
+                MAX_ITERATIONS, target_color
+            )
+        )
     else:
-        print("[ERROR] 已达最大迭代次数 ({})，无法将方块对准中心。".format(
-            MAX_ITERATIONS))
+        print(
+            "[ERROR] 已达最大迭代次数 ({})，无法将方块对准中心。".format(MAX_ITERATIONS)
+        )
     print("=" * 55)
 
 

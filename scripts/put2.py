@@ -40,13 +40,13 @@ IMAGE_WIDTH = 640
 IMAGE_HEIGHT = 480
 CENTER_X = IMAGE_WIDTH // 2
 
-CENTER_TOLERANCE = 40  # 水平对准容差(px)
+CENTER_TOLERANCE = 40  # 与 fetch.py 保持一致
 APPROACH_MIN_Y = 360  # 目标中心 y 达到该值视为足够近
 APPROACH_MIN_AREA = 12000  # 或面积达到阈值也可放置
 
 INITIAL_BACKWARD_STEPS = 3  # 开始搜索前先后退
 SEARCH_TURN_REPEAT = 1  # 搜索时每次转向步数
-MAX_ITERATIONS = 50  # 最大迭代，防止死循环
+MAX_ITERATIONS = 40  # 与 fetch.py 保持一致
 
 
 def do_take_photo():
