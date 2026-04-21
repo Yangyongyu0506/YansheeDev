@@ -23,7 +23,7 @@ B = 3
 STEPS = {
     "yellow": {"forward1": 20, "forward2": 0},   # h1, h2
     "green":  {"forward1": 15, "forward2": 2},   # g1, g2
-    "red":    {"forward1": 25, "forward2": 5},   # r1, r2
+    "red":    {"forward1": 20, "forward2": 5},   # r1, r2
 }
 
 SUPPORTED_COLORS = ["red", "yellow", "green"]
