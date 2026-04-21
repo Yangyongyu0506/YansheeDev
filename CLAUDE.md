@@ -1,0 +1,1 @@
+本工作空间用于控制优必选的Yanshee机器人完成各种任务，通过调用YanAPI实现，其中接口文件在./scripts/YanAPI.py，各种完成任务的文件./scripts
