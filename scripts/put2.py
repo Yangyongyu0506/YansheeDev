@@ -44,8 +44,8 @@ CENTER_TOLERANCE = 40  # 水平对准容差(px)
 APPROACH_MIN_Y = 360  # 目标中心 y 达到该值视为足够近
 APPROACH_MIN_AREA = 12000  # 或面积达到阈值也可放置
 
-SEARCH_FORWARD_REPEAT = 1  # 搜索时向前步数
-SEARCH_SIDE_REPEAT = 1  # 搜索时侧移步数
+INITIAL_BACKWARD_STEPS = 3  # 开始搜索前先后退
+SEARCH_TURN_REPEAT = 1  # 搜索时每次转向步数
 MAX_ITERATIONS = 50  # 最大迭代，防止死循环
 
 
@@ -91,19 +91,11 @@ def save_debug_image(image_path, result, target_color):
     print("[INFO] 调试图片已保存: {}".format(save_path))
 
 
-def search_motion(iteration):
-    """未找到目标时的搜索动作：以前进为主，夹杂左右扫描。"""
-    if iteration % 3 == 0:
-        direction = "left" if (iteration // 3) % 2 == 1 else "right"
-        print("[INFO] 未找到目标，侧移 {} 搜索...".format(direction))
-        YanAPI.sync_play_motion(
-            name="walk", direction=direction, speed="slow", repeat=SEARCH_SIDE_REPEAT
-        )
-        return
-
-    print("[INFO] 未找到目标，向前搜索...")
+def search_motion():
+    """未找到目标时原地小步转向扫描地面颜色区域。"""
+    print("[INFO] 未找到目标，原地左转小步搜索...")
     YanAPI.sync_play_motion(
-        name="walk", direction="forward", speed="slow", repeat=SEARCH_FORWARD_REPEAT
+        name="turn around", direction="left", repeat=SEARCH_TURN_REPEAT
     )
 
 
@@ -126,15 +118,21 @@ def main():
     print("  目标颜色: {}".format(target_color))
     print("  中心容差: ±{} px".format(CENTER_TOLERANCE))
     print("  接近阈值: y >= {} 或 area >= {}".format(APPROACH_MIN_Y, APPROACH_MIN_AREA))
+    print("  初始后退步数: {}".format(INITIAL_BACKWARD_STEPS))
     print("  最大迭代: {}".format(MAX_ITERATIONS))
     print("=" * 55)
 
     os.makedirs(PHOTOS_DIR, exist_ok=True)
     YanAPI.yan_api_init(YanAPI.ip)
 
-    print("[INFO] 复位姿态...")
-    YanAPI.sync_play_motion(name="reset")
-    time.sleep(0.5)
+    print("[INFO] 先后退 {} 步，准备搜索地面目标区域...".format(INITIAL_BACKWARD_STEPS))
+    YanAPI.sync_play_motion(
+        name="walk",
+        direction="backward",
+        speed="slow",
+        repeat=INITIAL_BACKWARD_STEPS,
+    )
+    time.sleep(0.3)
 
     ever_found = False
 
@@ -151,7 +149,7 @@ def main():
         save_debug_image(photo_path, result, target_color)
 
         if not result["found"]:
-            search_motion(iteration)
+            search_motion()
             time.sleep(0.3)
             continue
 

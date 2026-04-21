@@ -146,7 +146,7 @@ def main():
         # 5) 判断是否已对准中心
         if abs(offset) <= CENTER_TOLERANCE:
             print("[INFO] 方块已对准中心！开始执行 fetch 拾取...")
-            YanAPI.sync_play_motion(name="grasp")
+            YanAPI.sync_play_motion(name="grab2")
             print("[INFO] 拾取完成！")
             return
 
