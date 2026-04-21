@@ -39,11 +39,11 @@ SEARCH_WALK_REPEAT = 2
 MAX_ITERATIONS = 40
 
 # 放置公式: walk_left_steps = BASE[color] + (4 - block_index) * 3
-PUT_STEP_MULTIPLIER = 3
+PUT_STEP_MULTIPLIER = 4
 PUT_BASE_STEPS = {
-    "green":  9,
-    "yellow": 15,
-    "red":    20,
+    "green":  12,
+    "yellow": 18,
+    "red":    23,
 }
 
 
