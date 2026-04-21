@@ -38,9 +38,13 @@ CENTER_TOLERANCE = 40
 SEARCH_WALK_REPEAT = 2
 MAX_ITERATIONS = 40
 
-# 放置公式: walk_left_steps = 7 + (block_index) * 3
-PUT_BASE_STEPS = 12
+# 放置公式: walk_left_steps = BASE[color] + (4 - block_index) * 3
 PUT_STEP_MULTIPLIER = 3
+PUT_BASE_STEPS = {
+    "green":  9,
+    "yellow": 15,
+    "red":    20,
+}
 
 
 # ======================== 拍照 ========================
@@ -182,14 +186,15 @@ def do_fetch(target_color):
 
 
 # ======================== Phase 2: Put ========================
-def do_put(block_index):
-    """根据物块编号计算步数，向左走并放置方块。"""
-    steps = PUT_BASE_STEPS + (4-block_index) * PUT_STEP_MULTIPLIER
+def do_put(block_index, target_color):
+    """根据颜色和物块编号计算步数，向左走并放置方块。"""
+    base = PUT_BASE_STEPS[target_color]
+    steps = base + (4 - block_index) * PUT_STEP_MULTIPLIER
 
     print("\n" + "=" * 55)
-    print("  [Phase 2] Put — 物块编号: {}".format(block_index))
-    print("  向左走: {} + {}*{} = {} 步".format(
-        PUT_BASE_STEPS, block_index, PUT_STEP_MULTIPLIER, steps))
+    print("  [Phase 2] Put — 颜色: {} 物块编号: {}".format(target_color, block_index))
+    print("  向左走: {} + (4-{})*{} = {} 步".format(
+        base, block_index, PUT_STEP_MULTIPLIER, steps))
     print("=" * 55)
 
     print("[INFO] 向左走 {} 步...".format(steps))
@@ -224,7 +229,7 @@ def main():
         return
 
     # Phase 2: 放置
-    do_put(block_index)
+    do_put(block_index, target_color)
 
 
 if __name__ == "__main__":
