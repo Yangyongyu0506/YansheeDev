@@ -116,7 +116,7 @@ def detect_color_blocks(image_path, target_color, min_area=MIN_CONTOUR_AREA):
     mask = cv2.dilate(mask, kernel, iterations=DILATE_ITERATIONS)
 
     # 5. 查找轮廓
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    _, contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     # 6. 过滤 + 计算中心坐标
     for cnt in contours:
