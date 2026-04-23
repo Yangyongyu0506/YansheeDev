@@ -188,6 +188,8 @@ def do_fetch(target_color):
 # ======================== Phase 2: Put ========================
 def do_put(block_index, target_color):
     """根据颜色和物块编号计算步数，向左走并放置方块。"""
+    # 后退3步
+    print("[INFO] 后退 3 步...")
     YanAPI.sync_play_motion(name="walk", direction="backward", speed="slow", repeat=3)
     base = PUT_BASE_STEPS[target_color]
     steps = base + (3 - block_index) * PUT_STEP_MULTIPLIER

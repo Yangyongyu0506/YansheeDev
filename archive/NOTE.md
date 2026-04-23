@@ -1,0 +1,1 @@
+If you want to execute file in folder archive, please first move it to folder script, because lack of YanAPI.py
