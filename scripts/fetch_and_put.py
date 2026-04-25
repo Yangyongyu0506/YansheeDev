@@ -42,8 +42,8 @@ MAX_ITERATIONS = 40
 PUT_STEP_MULTIPLIER = 7
 PUT_BASE_STEPS = {
     "green":  16,
-    "yellow": 26,
-    "red":    38,
+    "yellow": 30,
+    "red":    30,
 }
 
 
