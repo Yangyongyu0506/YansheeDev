@@ -1,33 +1,31 @@
 """
-test.py — 用 fetch_put_vision.py 的 put 视觉检测算法测试 photos 中的图片
-检测结果带轮廓+中心点，保存到 test_photos
+test.py — 用黑色轮廓内精确 HSV 阈值测试
 """
 
 import os
 import cv2
 import numpy as np
 
-# ======================== 路径配置 ========================
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
 PHOTOS_DIR = os.path.join(PROJECT_DIR, "photos")
 TEST_PHOTOS_DIR = os.path.join(PROJECT_DIR, "test_photos")
 
-# ======================== 与 fetch_put_vision.py 的 put 检测完全一致的参数 ========================
+# 黄色阈值：基于 8.jpg 黑色轮廓内 p1-p99 精确计算
 PUT_COLOR_RANGES = {
     "red": [
         (np.array([0, 60, 80]),     np.array([12, 255, 255])),
         (np.array([165, 60, 80]),   np.array([180, 255, 255])),
     ],
     "yellow": [
-        (np.array([25, 80, 150]),   np.array([45, 255, 255])),
+        (np.array([30, 82, 114]),   np.array([32, 131, 210])),
     ],
     "green": [
         (np.array([35, 100, 100]),  np.array([85, 255, 255])),
     ],
 }
 
-PUT_MIN_CONTOUR_AREA = 2000
+PUT_MIN_CONTOUR_AREA = 20000  # 大幅提高最小面积
 PUT_MORPH_KERNEL = (3, 3)
 PUT_ERODE_ITERATIONS = 1
 PUT_DILATE_ITERATIONS = 2
@@ -44,14 +42,10 @@ DRAW_COLORS = {
 }
 DOT_RADIUS = 6
 CONTOUR_THICKNESS = 2
-
 SUPPORTED_COLORS = ["red", "yellow", "green"]
 
 
 def detect_color_blocks_put(image_path, target_color):
-    """
-    与 fetch_put_vision.py 的 detect_color_blocks_put 完全一致。
-    """
     result = {
         "found": False,
         "count": 0,
@@ -83,7 +77,7 @@ def detect_color_blocks_put(image_path, target_color):
     mask = cv2.dilate(mask, kernel, iterations=PUT_DILATE_ITERATIONS)
 
     contours_result = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours = contours_result[-2]  # 兼容不同 OpenCV 版本
+    contours = contours_result[-2]
 
     for cnt in contours:
         area = cv2.contourArea(cnt)
@@ -115,7 +109,6 @@ def run_test():
     if not os.path.exists(TEST_PHOTOS_DIR):
         os.makedirs(TEST_PHOTOS_DIR)
 
-    # 获取 photos 中的所有图片，按文件名排序
     image_files = sorted([
         f for f in os.listdir(PHOTOS_DIR)
         if f.lower().endswith((".jpg", ".png", ".jpeg", ".bmp"))
@@ -126,9 +119,8 @@ def run_test():
         return
 
     print("=" * 60)
-    print("  Put 视觉检测测试 — 共 {} 张图片".format(len(image_files)))
-    print("  检测颜色: {}".format(", ".join(SUPPORTED_COLORS)))
-    print("  无 Y 坐标过滤")
+    print("  黄色阈值: H[30,32] S[82,131] V[114,210]")
+    print("  最小面积: {}".format(PUT_MIN_CONTOUR_AREA))
     print("=" * 60)
 
     for fname in image_files:
@@ -148,12 +140,9 @@ def run_test():
 
             for block in result["blocks"]:
                 cx, cy = block["center_x"], block["center_y"]
-                # 轮廓
                 cv2.drawContours(img, [block["contour"]], -1, bgr, CONTOUR_THICKNESS)
-                # 中心点：白色外圈 + 颜色实心圆
                 cv2.circle(img, (cx, cy), DOT_RADIUS + 2, (255, 255, 255), 2)
                 cv2.circle(img, (cx, cy), DOT_RADIUS, bgr, -1)
-                # 坐标标签
                 label = "{} ({},{})".format(color, cx, cy)
                 cv2.putText(img, label, (cx + DOT_RADIUS + 5, cy + 4),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
@@ -165,18 +154,15 @@ def run_test():
                 print("    #{}: center({}, {}) area={:.0f}".format(
                     i + 1, block["center_x"], block["center_y"], block["area"]))
 
-        # 画中心参考线
         cv2.line(img, (CENTER_X, 0), (CENTER_X, IMAGE_HEIGHT), (255, 255, 255), 1)
 
-        # 保存
         save_path = os.path.join(TEST_PHOTOS_DIR, fname)
         cv2.imwrite(save_path, img)
         summary = ", ".join("{}({},{})".format(c, x, y) for c, x, y, _ in all_detections)
-        print("  => 保存到: {} | 检测结果: {}".format(
-            save_path, summary if summary else "(none)"))
+        print("  => {}".format(summary if summary else "(none)"))
 
     print("\n" + "=" * 60)
-    print("  测试完成，结果保存在: {}".format(TEST_PHOTOS_DIR))
+    print("  测试完成")
     print("=" * 60)
 
 
