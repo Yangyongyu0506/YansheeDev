@@ -42,7 +42,7 @@ IMAGE_HEIGHT = 480
 CENTER_X = IMAGE_WIDTH // 2
 
 CENTER_TOLERANCE = 40
-MAX_ITERATIONS = 40
+MAX_ITERATIONS = 100
 SEARCH_WALK_REPEAT = 2
 
 # 目标面积（像素面积）和可接受容差
@@ -193,7 +193,7 @@ def main():
             else:
                 print("[INFO] 已发现目标但偏右，向右移动 1 步对准...")
                 YanAPI.sync_play_motion(
-                    name="walk", direction="right", speed="slow", repeat=1
+                    name="walk", direction="right", speed="fast", repeat=1
                 )
             continue
 
@@ -209,8 +209,9 @@ def main():
             )
         )
         YanAPI.sync_play_motion(
-            name="walk", direction="forward", speed="slow", repeat=1
+            name="walk", direction="forward", speed="fast", repeat=1
         )
+        YanAPI.sync_play_motion("reset")
         continue
 
     print("\n" + "=" * 60)

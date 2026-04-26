@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 fetch-and-put.py — 识别拾取指定颜色方块，移动并放置
 
@@ -42,9 +43,11 @@ MAX_ITERATIONS = 40
 PUT_STEP_MULTIPLIER = 7
 PUT_BASE_STEPS = {
     "green":  16,
-    "yellow": 30,
-    "red":    30,
+    "yellow": 32,
+    "red":    32,
 }
+# turn once every * steps
+TRANSLATE_TURN_RATIO = 20
 
 
 # ======================== 拍照 ========================
@@ -189,8 +192,8 @@ def do_fetch(target_color):
 def do_put(block_index, target_color):
     """根据颜色和物块编号计算步数，向左走并放置方块。"""
     # 后退3步
-    print("[INFO] 后退 3 步...")
-    YanAPI.sync_play_motion(name="walk", direction="backward", speed="slow", repeat=3)
+    #print("[INFO] 后退 3 步...")
+    #YanAPI.sync_play_motion(name="walk", direction="backward", speed="slow", repeat=3)
     base = PUT_BASE_STEPS[target_color]
     steps = base + (3 - block_index) * PUT_STEP_MULTIPLIER
 
@@ -204,11 +207,13 @@ def do_put(block_index, target_color):
     for i in range(steps):
         YanAPI.sync_play_motion(name="walk", direction="left", speed="slow", repeat=1)
         print("[INFO] 向左第 {}/{} 步完成".format(i + 1, steps))
+        if i % 20 == 0 and i != 0:
+            YanAPI.sync_play_motion(name="turn around", direction="left", repeat=1)
     print("[INFO] 向左走完成")
 
     if target_color == "red":
         print("[INFO] 红色方块，转180度...")
-        YanAPI.sync_play_motion(name="turn around", direction="left", repeat=5)
+        YanAPI.sync_play_motion(name="turn around", direction="left", repeat=3)
         print("[INFO] 转180度完成")
 
     print("[INFO] 执行 place 放置方块...")
