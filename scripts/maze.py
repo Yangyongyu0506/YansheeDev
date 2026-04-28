@@ -14,8 +14,8 @@ MAZE_PATH = [
     ("left",     24),
     ("backward", 10),
     ("left",     28),
-    ("forward",   7),
-    ("left",     20),
+    ("forward",   6),
+    ("left",     23),
 ]
 
 DIR_LABEL = {"forward": "前", "backward": "后", "left": "左", "right": "右"}

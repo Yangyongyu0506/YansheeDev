@@ -1,15 +1,15 @@
 """
-fetch_put_aruco.py - 先抓取颜色方块，再基于 ArUco/AprilTag 放置
+fetch_put_aruco.py - 先抓取颜色方块，再基于 OpenCV ArUco 放置
 
 用法: python3 fetch_put_aruco.py <color>
   color: red / yellow / green
 
 流程:
   1) Fetch: 视觉搜索目标颜色并执行 grab2
-  2) Put: 先左移若干步，然后搜索对应 tag
+  2) Put: 先左移若干步，然后搜索对应 ArUco tag
      - 未找到 tag: 左转一次继续找
-     - 找到 tag: 根据 tag 的距离(postion-z/position-z)前后调整
-     - 距离进入容差: 执行 place2
+     - 找到 tag: 先做中心对准，再用 tag 面积估计远近
+     - 面积进入容差: 执行 place2
 """
 
 import os
@@ -49,21 +49,25 @@ FETCH_MAX_ITERATIONS = 40
 # ======================== Put(Tag) 参数 ========================
 # 颜色 -> tag id 对应关系（按现场实际修改）
 COLOR_TO_ARUCO_ID = {
-    "green": 10,
-    "yellow": 11,
-    "red": 12,
+    "green": 9,
+    "yellow": 9,
+    "red": 9,
 }
 
-# start_aprilTag_recognition 需要 id + size（单位 m）
-DEFAULT_TAG_SIZE_M = 0.05
+# OpenCV ArUco 字典: 5x5，id=9 在该字典内
+ARUCO_DICT_NAME = "DICT_5X5_250"
+# 实物边长（m），当前逻辑使用面积控制，保留该参数便于后续切换到数学距离解算
+ARUCO_MARKER_SIZE_M = 0.05
 
 PUT_INITIAL_LEFT_STEPS = 6
 PUT_MAX_ITERATIONS = 50
 TURN_LEFT_REPEAT = 1
 
-# 目标距离（机器人到 tag 的 z 距离，单位 m）
-TARGET_TAG_DISTANCE_M = 0.35
-TAG_DISTANCE_TOLERANCE_M = 0.06
+# 放置阶段：先做中心对准，再按面积逼近
+PUT_CENTER_TOLERANCE = 40
+TARGET_TAG_AREA = 15000
+TAG_AREA_TOLERANCE_RATIO = 0.20
+TAG_AREA_TOLERANCE_MIN = 2500
 
 
 def do_take_photo():
@@ -163,38 +167,138 @@ def do_fetch(target_color):
     return False
 
 
-def _get_numeric(dct, keys):
-    for key in keys:
-        if key in dct:
-            try:
-                return float(dct[key])
-            except Exception:
-                return None
-    return None
+def get_tag_area_bounds():
+    area_tol = max(
+        int(TARGET_TAG_AREA * TAG_AREA_TOLERANCE_RATIO), TAG_AREA_TOLERANCE_MIN
+    )
+    return area_tol, TARGET_TAG_AREA - area_tol, TARGET_TAG_AREA + area_tol
 
 
-def _find_target_tag(status_res, target_id):
-    if not isinstance(status_res, dict):
-        return None
-    data = status_res.get("data", {})
-    tags = data.get("AprilTagStatus", [])
-    for tag in tags:
-        if tag.get("id") == target_id:
-            return tag
-    return None
+def _get_aruco_module():
+    aruco = getattr(cv2, "aruco", None)
+    if aruco is None:
+        raise RuntimeError(
+            "当前 OpenCV 不包含 aruco 模块。请安装 opencv-contrib 版本，"
+            "例如: pip3 install opencv-contrib-python"
+        )
+    return aruco
+
+
+def detect_aruco_marker(image_path, target_id):
+    """用 OpenCV ArUco 检测指定 id，返回面积和中心。"""
+    result = {
+        "found": False,
+        "marker": None,
+        "image_path": image_path,
+    }
+
+    img = cv2.imread(image_path)
+    if img is None:
+        return result
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    aruco = _get_aruco_module()
+    dictionary = aruco.getPredefinedDictionary(getattr(aruco, ARUCO_DICT_NAME))
+
+    if hasattr(aruco, "ArucoDetector"):
+        parameters = aruco.DetectorParameters()
+        detector = aruco.ArucoDetector(dictionary, parameters)
+        corners_list, ids, _ = detector.detectMarkers(gray)
+    else:
+        parameters = aruco.DetectorParameters_create()
+        corners_list, ids, _ = aruco.detectMarkers(
+            gray, dictionary, parameters=parameters
+        )
+
+    if ids is None or len(ids) == 0:
+        return result
+
+    ids_flat = ids.flatten().tolist()
+    candidates = []
+    for idx, marker_id in enumerate(ids_flat):
+        if marker_id != target_id:
+            continue
+        pts = corners_list[idx].reshape(4, 2)
+        area = float(cv2.contourArea(pts.astype("float32")))
+        cx = int(pts[:, 0].mean())
+        cy = int(pts[:, 1].mean())
+        candidates.append(
+            {
+                "id": marker_id,
+                "corners": pts,
+                "area": area,
+                "center_x": cx,
+                "center_y": cy,
+            }
+        )
+
+    if not candidates:
+        return result
+
+    best = max(candidates, key=lambda m: m["area"])
+    result["found"] = True
+    result["marker"] = best
+    return result
+
+
+def save_aruco_debug_image(image_path, aruco_result, target_id, lower_area, upper_area):
+    os.makedirs(TEST_PHOTOS_DIR, exist_ok=True)
+    img = cv2.imread(image_path)
+    if img is None:
+        return
+
+    if aruco_result["found"]:
+        marker = aruco_result["marker"]
+        corners = marker["corners"].astype("int32").reshape((-1, 1, 2))
+        cx = marker["center_x"]
+        cy = marker["center_y"]
+        area = int(marker["area"])
+        cv2.polylines(img, [corners], True, (255, 220, 0), 2)
+        cv2.circle(img, (cx, cy), 6, (0, 255, 255), -1)
+        cv2.putText(
+            img,
+            "id={} area={}".format(target_id, area),
+            (cx + 8, cy - 8),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (255, 255, 255),
+            1,
+        )
+
+    cv2.line(img, (CENTER_X, 0), (CENTER_X, IMAGE_HEIGHT), (255, 255, 255), 1)
+    cv2.putText(
+        img,
+        "target_area={} range=[{},{}]".format(TARGET_TAG_AREA, lower_area, upper_area),
+        (8, 20),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.5,
+        (255, 255, 255),
+        1,
+    )
+
+    save_path = os.path.join(TEST_PHOTOS_DIR, os.path.basename(image_path))
+    cv2.imwrite(save_path, img)
+    print("[INFO] ArUco 调试图片已保存: {}".format(save_path))
 
 
 def do_put_by_tag(target_color):
-    """按颜色映射到 tag，并视觉引导靠近后 place2。"""
+    """按颜色映射到 ArUco tag，并视觉引导靠近后 place2。"""
     target_id = COLOR_TO_ARUCO_ID[target_color]
+    area_tol, lower_area, upper_area = get_tag_area_bounds()
 
     print("\n" + "=" * 60)
-    print("[Phase 2] Put by ArUco/AprilTag")
+    print("[Phase 2] Put by OpenCV ArUco")
     print("  目标颜色: {} -> tag id {}".format(target_color, target_id))
-    print("  初始左移步数: {}".format(PUT_INITIAL_LEFT_STEPS))
     print(
-        "  目标距离: {:.2f} m (容差 ±{:.2f})".format(
-            TARGET_TAG_DISTANCE_M, TAG_DISTANCE_TOLERANCE_M
+        "  ArUco 字典: {} | marker_size={}m".format(
+            ARUCO_DICT_NAME, ARUCO_MARKER_SIZE_M
+        )
+    )
+    print("  初始左移步数: {}".format(PUT_INITIAL_LEFT_STEPS))
+    print("  中心容差: ±{} px".format(PUT_CENTER_TOLERANCE))
+    print(
+        "  目标面积: {} (容差 ±{} => [{} ~ {}])".format(
+            TARGET_TAG_AREA, area_tol, lower_area, upper_area
         )
     )
     print("=" * 60)
@@ -204,83 +308,82 @@ def do_put_by_tag(target_color):
         name="walk", direction="left", speed="slow", repeat=PUT_INITIAL_LEFT_STEPS
     )
 
-    start_res = YanAPI.start_aprilTag_recognition(
-        tags=[{"id": target_id, "size": DEFAULT_TAG_SIZE_M}],
-        enableStream=False,
-    )
-    if not isinstance(start_res, dict) or start_res.get("code") not in (0, 20003):
-        print("[ERROR] AprilTag 识别启动失败: {}".format(start_res))
+    try:
+        _get_aruco_module()
+    except RuntimeError as exc:
+        print("[ERROR] {}".format(exc))
         return False
 
-    try:
-        for iteration in range(1, PUT_MAX_ITERATIONS + 1):
-            print("\n--- [Put] 第 {} 次迭代 ---".format(iteration))
-            status = YanAPI.get_aprilTag_recognition_status()
-            tag = _find_target_tag(status, target_id)
+    for iteration in range(1, PUT_MAX_ITERATIONS + 1):
+        print("\n--- [Put] 第 {} 次迭代 ---".format(iteration))
 
-            if tag is None:
-                print("[INFO] 未找到目标 tag {}，左转一次继续搜索...".format(target_id))
-                YanAPI.sync_play_motion(
-                    name="turn around", direction="left", repeat=TURN_LEFT_REPEAT
-                )
-                time.sleep(0.3)
-                continue
+        photo_path = do_take_photo()
+        if photo_path is None:
+            print("[WARN] 拍照失败，稍后重试...")
+            time.sleep(0.8)
+            continue
 
-            distance_z = _get_numeric(tag, ["postion-z", "position-z", "z"])
-            offset_x = _get_numeric(tag, ["postion-x", "position-x", "x"])
+        aruco_result = detect_aruco_marker(photo_path, target_id)
+        save_aruco_debug_image(
+            photo_path, aruco_result, target_id, lower_area, upper_area
+        )
 
+        if not aruco_result["found"]:
             print(
-                "[INFO] 已找到目标 tag {}: x={} z={}".format(
-                    target_id, offset_x, distance_z
-                )
+                "[INFO] 未找到目标 ArUco id={}，左转一次继续搜索...".format(target_id)
             )
+            YanAPI.sync_play_motion(
+                name="turn around", direction="left", repeat=TURN_LEFT_REPEAT
+            )
+            time.sleep(0.3)
+            continue
 
-            # 可用横向位移时，先微调朝向
-            if offset_x is not None and abs(offset_x) > 0.08:
-                if offset_x > 0:
-                    print("[INFO] tag 在右侧，向右微调 1 步...")
-                    YanAPI.sync_play_motion(
-                        name="walk", direction="right", speed="slow", repeat=1
-                    )
-                else:
-                    print("[INFO] tag 在左侧，向左微调 1 步...")
-                    YanAPI.sync_play_motion(
-                        name="walk", direction="left", speed="slow", repeat=1
-                    )
-                time.sleep(0.3)
-                continue
+        marker = aruco_result["marker"]
+        cx = marker["center_x"]
+        cy = marker["center_y"]
+        area = int(marker["area"])
+        offset = cx - CENTER_X
+        print(
+            "[INFO] 已找到 ArUco id={} center=({}, {}) area={} offset={:+d}px".format(
+                target_id, cx, cy, area, offset
+            )
+        )
 
-            if distance_z is None:
-                print("[WARN] 未拿到 z 距离，左转一次重试...")
-                YanAPI.sync_play_motion(name="turn around", direction="left", repeat=1)
-                time.sleep(0.3)
-                continue
-
-            delta = distance_z - TARGET_TAG_DISTANCE_M
-            if abs(delta) <= TAG_DISTANCE_TOLERANCE_M:
-                print("[INFO] 已到放置距离，执行 place2...")
-                YanAPI.sync_play_motion(name="place2")
-                print("[INFO] 放置完成。")
-                return True
-
-            if delta > 0:
-                print("[INFO] 距离偏远(z={:.3f})，向前走 1 步...".format(distance_z))
+        if abs(offset) > PUT_CENTER_TOLERANCE:
+            if offset < 0:
+                print("[INFO] tag 偏左，向左微调 1 步...")
                 YanAPI.sync_play_motion(
-                    name="walk", direction="forward", speed="slow", repeat=1
+                    name="walk", direction="left", speed="slow", repeat=1
                 )
             else:
-                print("[INFO] 距离偏近(z={:.3f})，向后退 1 步...".format(distance_z))
+                print("[INFO] tag 偏右，向右微调 1 步...")
                 YanAPI.sync_play_motion(
-                    name="walk", direction="backward", speed="slow", repeat=1
+                    name="walk", direction="right", speed="slow", repeat=1
                 )
-
             time.sleep(0.3)
+            continue
 
-        print("[ERROR] Put 超时，未到达可放置距离。")
-        return False
-    finally:
-        stop_res = YanAPI.stop_aprilTag_recognition()
-        print("[INFO] 已停止 AprilTag 识别: {}".format(stop_res))
+        if lower_area <= area <= upper_area:
+            print("[INFO] 面积进入放置容差，执行 place2...")
+            YanAPI.sync_play_motion(name="place2")
+            print("[INFO] 放置完成。")
+            return True
+
+        if area < lower_area:
+            print("[INFO] tag 面积偏小(area={})，向前靠近 1 步...".format(area))
+            YanAPI.sync_play_motion(
+                name="walk", direction="forward", speed="slow", repeat=1
+            )
+        else:
+            print("[INFO] tag 面积偏大(area={})，向后退 1 步...".format(area))
+            YanAPI.sync_play_motion(
+                name="walk", direction="backward", speed="slow", repeat=1
+            )
+
+        time.sleep(0.3)
+
+    print("[ERROR] Put 超时，未达到可放置范围。")
+    return False
 
 
 def main():
