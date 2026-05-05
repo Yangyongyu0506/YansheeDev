@@ -19,15 +19,25 @@ import re
 # --------------------- 颜色 HSV 范围 ---------------------
 COLOR_RANGES = {
     "red": [
-        (np.array([0, 60, 80]),     np.array([12, 255, 255])),    # 降低 S/V 下限以覆盖泛白红色边缘
+        # 旧阈值:
+        (np.array([0, 60, 80]),     np.array([12, 255, 255])),
         (np.array([165, 60, 80]),   np.array([180, 255, 255])),
+        # 新阈值: 主体 H=0~4, 尾端 H=174~180; S=69~180, V=156~254
+        # (np.array([0, 60, 150]),     np.array([8, 185, 255])),
+        # (np.array([174, 60, 150]),   np.array([180, 185, 255])),
     ],
     "yellow": [
-        (np.array([20, 140, 190]),  np.array([34, 255, 255])),    # 亮黄色（高亮度）
-        (np.array([20, 200, 170]),  np.array([34, 255, 255])),    # 深黄色（高饱和度、稍暗，覆盖物块阴影面）
+        # 旧阈值:
+        (np.array([20, 140, 190]),  np.array([34, 255, 255])),
+        (np.array([20, 200, 170]),  np.array([34, 255, 255])),
+        # 新阈值: H=24~31, S=89~223, V=172~255
+        # (np.array([23, 80, 165]),    np.array([33, 255, 255])),
     ],
     "green": [
+        # 旧阈值:
         (np.array([35, 100, 100]),  np.array([85, 255, 255])),
+        # 新阈值: H=43~50, S=80~195, V=120~244
+        # (np.array([40, 70, 110]),    np.array([55, 200, 255])),
     ],
 }
 
@@ -116,7 +126,8 @@ def detect_color_blocks(image_path, target_color, min_area=MIN_CONTOUR_AREA):
     mask = cv2.dilate(mask, kernel, iterations=DILATE_ITERATIONS)
 
     # 5. 查找轮廓
-    _, contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours_result = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours = contours_result[-2]
 
     # 6. 过滤 + 计算中心坐标
     for cnt in contours:

@@ -1,5 +1,5 @@
 """
-test.py — 用黑色轮廓内精确 HSV 阈值测试
+test.py — 放置阶段的color detect
 """
 
 import os
@@ -11,17 +11,16 @@ PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
 PHOTOS_DIR = os.path.join(PROJECT_DIR, "photos")
 TEST_PHOTOS_DIR = os.path.join(PROJECT_DIR, "test_photos")
 
-# 黄色阈值：基于 8.jpg 黑色轮廓内 p1-p99 精确计算
 PUT_COLOR_RANGES = {
     "red": [
         (np.array([0, 60, 80]),     np.array([12, 255, 255])),
         (np.array([165, 60, 80]),   np.array([180, 255, 255])),
     ],
     "yellow": [
-        (np.array([30, 82, 114]),   np.array([32, 131, 210])),
+        (np.array([27, 95, 162]),   np.array([33, 140, 229])),
     ],
     "green": [
-        (np.array([35, 100, 100]),  np.array([85, 255, 255])),
+        (np.array([32, 101, 182]),  np.array([40, 144, 238])),
     ],
 }
 
@@ -119,7 +118,7 @@ def run_test():
         return
 
     print("=" * 60)
-    print("  黄色阈值: H[30,32] S[82,131] V[114,210]")
+    print("  黄色阈值: H[27,33] S[95,140] V[162,229]")
     print("  最小面积: {}".format(PUT_MIN_CONTOUR_AREA))
     print("=" * 60)
 
