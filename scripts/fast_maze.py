@@ -30,14 +30,34 @@ TURN_REPEAT = 3
 PARALLEL_ADJUST_STEPS = 3
 MAZE_MAX_CYCLES = 10
 
-# ---------- 步态速度参数 ----------
-GAIT_MAX_SPEED = 5
-GAIT_POLL_INTERVAL = 0.05  # 轮询间隔(秒)
+# ---------- 步态参数 ----------
+GAIT_MAX_SPEED = 5        # speed_v / speed_h 的最大绝对值
+GAIT_POLL_INTERVAL = 0.05 # 轮询间隔(秒)
+GAIT_START_TIMEOUT = 10   # 等待步态启动超时(秒)
+GAIT_DONE_TIMEOUT = 30    # 等待步态完成超时(秒)
 
 
 # ======================== 同步步态行走 ========================
-def sync_gait_walk(speed_v=0, speed_h=0, steps=1):
-    """调用 control_motion_gait 并阻塞等待步态完成。"""
+def sync_gait_walk(direction, steps):
+    """调用 control_motion_gait 行走并阻塞等待完成。
+
+    Args:
+        direction: "left" / "forward" / "backward"
+        steps: 步数
+    """
+    if direction == "left":
+        speed_v = 0
+        speed_h = GAIT_MAX_SPEED
+    elif direction == "forward":
+        speed_v = GAIT_MAX_SPEED
+        speed_h = 0
+    elif direction == "backward":
+        speed_v = -GAIT_MAX_SPEED
+        speed_h = 0
+    else:
+        print("[ERROR] sync_gait_walk 不支持的方向: {}".format(direction))
+        return False
+
     res = YanAPI.control_motion_gait(
         speed_v=speed_v,
         speed_h=speed_h,
@@ -48,16 +68,34 @@ def sync_gait_walk(speed_v=0, speed_h=0, steps=1):
         print("[ERROR] gait 调用失败: {}".format(res))
         return False
 
-    # 轮询等待步态完全结束 (status 8 = Idle)
-    while True:
+    # 阶段1: 等待步态启动（status 离开 idle=8）
+    t0 = time.time()
+    started = False
+    while time.time() - t0 < GAIT_START_TIMEOUT:
         state = YanAPI.get_motion_gait_state()
-        if isinstance(state, dict):
-            status = state.get("data", {}).get("status")
-            if status == 8:
+        if isinstance(state, dict) and isinstance(state.get("data"), dict):
+            status = state["data"].get("status")
+            if status is not None and status != 8:
+                started = True
                 break
         time.sleep(GAIT_POLL_INTERVAL)
 
-    return True
+    if not started:
+        print("[WARN] 等待步态启动超时，可能已瞬间完成")
+        return True
+
+    # 阶段2: 等待步态完成（status 回到 idle=8）
+    t0 = time.time()
+    while time.time() - t0 < GAIT_DONE_TIMEOUT:
+        state = YanAPI.get_motion_gait_state()
+        if isinstance(state, dict) and isinstance(state.get("data"), dict):
+            status = state["data"].get("status")
+            if status == 8:
+                return True
+        time.sleep(GAIT_POLL_INTERVAL)
+
+    print("[WARN] 等待步态完成超时")
+    return False
 
 
 # ======================== 红外读取 ========================
@@ -85,8 +123,7 @@ def move_left_until_wall(threshold_mm):
     hit_count = 0
 
     for step in range(1, MAX_LEFT_SEARCH_STEPS + 1):
-        # 用 gait 替代 sync_play_motion walk left
-        sync_gait_walk(speed_v=0, speed_h=GAIT_MAX_SPEED, steps=LEFT_STEP_REPEAT)
+        sync_gait_walk("left", LEFT_STEP_REPEAT)
 
         ir_mm = _read_infrared_mm()
         if ir_mm is None:
@@ -175,19 +212,13 @@ def turn_and_parallel_adjust(turn_direction):
         adjust_direction = "forward"
 
     print("[INFO] 平行调整: {} {} 步".format(adjust_direction, PARALLEL_ADJUST_STEPS))
-
-    # 用 gait 替代 sync_play_motion walk forward/backward
-    if adjust_direction == "forward":
-        sync_gait_walk(speed_v=GAIT_MAX_SPEED, speed_h=0, steps=PARALLEL_ADJUST_STEPS)
-    else:
-        sync_gait_walk(speed_v=-GAIT_MAX_SPEED, speed_h=0, steps=PARALLEL_ADJUST_STEPS)
+    sync_gait_walk(adjust_direction, PARALLEL_ADJUST_STEPS)
 
 
 # ======================== 主流程 ========================
 def main():
     YanAPI.yan_api_init(YanAPI.ip)
     print("[INFO] 初始化完成，复位姿态...")
-    # reset 仍用 sync_play_motion
     YanAPI.sync_play_motion(name="reset")
 
     cycle = 0
